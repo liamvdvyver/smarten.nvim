@@ -111,7 +111,6 @@ M.set_list = set_list
 -- register autommands
 local register_qf_autocmds = function()
   local callback = function(_)
-    vim.notify("ev")
     set_list(quickfix)
   end
 
@@ -144,7 +143,7 @@ local handle_onkey = function(key, typed, pattern, list_idx)
     local match_key = pattern[1] and string.match(key, pattern[1])
     local match_typed = pattern[2] and string.match(typed, pattern[2])
     if match_key or match_typed then
-      vim.notify("matched " .. list_idx .. " with " .. key .. ", " .. typed)
+      -- vim.notify("matched " .. list_idx .. " with " .. key .. ", " .. typed)
       set_list(list_idx)
     end
   end
@@ -170,9 +169,6 @@ local register_unimpaired_listener = function()
     if vim.fn.mode() == "n" then
       local matched = string.match(typed, unimp_pat)
       if matched then
-        -- TODO: remove when working well
-        vim.notify("Matched unimpaired: " .. matched .. " from typing " .. typed)
-
         M.unimpaired_suffix = matched
         M.cur_list = unimpaired
         cmds[unimpaired] = {
@@ -189,6 +185,12 @@ end
 -- public
 M.setup = function(opts)
   set_list(1)
+
+  local default_opts = {
+    smart_unimpaired = true,
+  }
+
+  opts = vim.tbl_extend("force", default_opts, opts)
 
   local keys = setup_keys(opts.smart_unimpaired)
 
