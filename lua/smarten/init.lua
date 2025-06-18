@@ -69,7 +69,7 @@ local setup_keys = function(smart_unimpaired)
   local keys = {}
 
   local unimp_str = function(chars)
-    if smart_unimpaired then
+    if not smart_unimpaired then
       return "[%[%]][" .. chars .. "]"
     else
       return nil
