@@ -1,5 +1,5 @@
 local M = {
-  cur_list = nil
+  cur_list = nil,
 }
 
 -- idx for selected list
@@ -17,8 +17,8 @@ cmds[search] = {
 		"normal N",
 }
 cmds[quickfix] = {
-		"cnext",
-		"cprev",
+  "cnext",
+  "cprev",
 }
 cmds[loclist] = {
   "lnext",
@@ -26,9 +26,8 @@ cmds[loclist] = {
 }
 
 local run_cmd = function(list_idx, dir_idx)
-	-- local cmd = "silent " .. cmds[list_idx][dir_idx]
-	local cmd = cmds[list_idx][dir_idx]
-	pcall(vim.cmd, cmd)
+  local cmd = "silent " .. cmds[list_idx][dir_idx]
+  pcall(vim.cmd, cmd)
 end
 
 -- swap list
@@ -36,16 +35,39 @@ local set_list = function(list_idx)
   M.cur_list = list_idx
 end
 
+M.set_list = set_list
+
 -- register autommands
-local register_qf_autocmd = function()
-  vim.api.nvim_create_autocmd("QuickFixCmdPost",  {
-    callback = function(_)
-      set_list(quickfix)
+local register_qf_autocmds = function()
+  local callback = function(_)
+    vim.notify("ev")
+    set_list(quickfix)
+  end
+
+  local callback_check = function(ev, filetype)
+    local ft = vim.bo[ev.buf].filetype
+    -- HACK: I can't match on pattern, so this works instead
+    if ft == filetype then
+      callback()
     end
+  end
+
+  vim.api.nvim_create_autocmd("BufWinEnter", {
+    callback = function(ev)
+      callback_check(ev, "qf")
+    end,
+  })
+
+  -- On entering quickfix window
+  vim.api.nvim_create_autocmd("WinEnter", {
+    callback = function(ev)
+      callback_check(ev, "qf")
+    end,
   })
 end
 
--- listen to keys
+-- listen to keys, match search keys in normal mode only
+-- then, set active list to search
 local handle_search_keys = function(key, typed)
   if string.match(key, "[/?*#]") then
     set_list(search)
@@ -53,17 +75,13 @@ local handle_search_keys = function(key, typed)
 end
 
 local register_search_onkey = function()
-  vim.on_key(
-    handle_search_keys,
-    nil,
-    nil
-  )
+  vim.on_key(handle_search_keys, nil, nil)
 end
 
 -- public
 M.setup = function()
   set_list(1)
-  register_qf_autocmd()
+  register_qf_autocmds()
   register_search_onkey()
 end
 
