@@ -10,6 +10,7 @@ local buffer = 4
 local tab = 5
 local tag = 6
 local diagnostic = 7
+local unimpaired = 8
 
 -- idx for direction
 local next = 1
@@ -53,42 +54,47 @@ cmds[diagnostic] = {
 -- That is, key is rhs, typed is lhs of mapping.
 --
 -- Assumed to only match in normal mode.
-local keys = {}
+--
+-- If smart_unimpaired, then unimpaired style mappings are not setup here
+-- (they should be inferred automatically elsewhere)
+local setup_keys = function(smart_unimpaired)
+  local keys = {}
 
--- TODO: check this works with unimpaired
-local unimp_str = function(chars)
-  return "[%[%]][" .. chars .. "]"
+  local unimp_str = function(chars)
+    if smart_unimpaired then
+      return "[%[%]][" .. chars .. "]"
+    else
+      return nil
+    end
+  end
+
+  keys[search] = {
+    "[/?*#nN]",
+    nil,
+  }
+  keys[quickfix] = {
+    nil,
+    unimp_str("qQ"),
+  }
+  keys[buffer] = {
+    nil,
+    unimp_str("bB"),
+  }
+  keys[tab] = {
+    nil,
+    nil, -- TODO: is this mapped?
+  }
+  keys[tag] = {
+    nil,
+    unimp_str("tT"),
+  }
+  keys[diagnostic] = {
+    nil,
+    unimp_str("dD"),
+  }
+
+  return keys
 end
-
-keys[search] = {
-  "[/?*#nN]",
-  nil,
-}
-keys[quickfix] = {
-  nil,
-  unimp_str("qQ")
-}
-keys[buffer] = {
-  nil,
-  unimp_str("bB")
-}
-keys[tab] = {
-  nil,
-  nil, -- TODO: is this mapped?
-}
-keys[tag] = {
-  nil,
-  unimp_str("tT")
-}
-keys[diagnostic] = {
-  nil,
-  unimp_str("dD")
-}
-
--- TODO: this is the idea:
--- Add a listener which matches typed on "[%[%]]%a",
--- and then automatically set next/prev to matching normal mode commands.
--- This way, any unimpairsed style mappings are automatically supported
 
 local run_cmd = function(list_idx, dir_idx)
   local cmd = "silent " .. cmds[list_idx][dir_idx]
@@ -145,7 +151,7 @@ local handle_onkey = function(key, typed, pattern, list_idx)
 end
 
 -- TODO: many small listeners vs. one big listener
-local register_onkey_listeners = function()
+local register_onkey_listeners = function(keys)
   for list_idx, pattern in pairs(keys) do
     -- TODO: can I pass these args in with on_key, this is messy
     vim.on_key(function(key, typed)
@@ -154,11 +160,45 @@ local register_onkey_listeners = function()
   end
 end
 
+-- Add a listener which matches typed on "[%[%]]%a",
+-- and then automatically set next/prev to matching normal mode commands.
+-- This way, any unimpaired style mappings are automatically supported
+M.unimpaired_suffix = nil
+local unimp_pat = "[%[%]](%a)"
+local register_unimpaired_listener = function()
+  local unimp_callback = function(_, typed)
+    if vim.fn.mode() == "n" then
+      local matched = string.match(typed, unimp_pat)
+      if matched then
+        -- TODO: remove when working well
+        vim.notify("Matched unimpaired: " .. matched .. " from typing " .. typed)
+
+        M.unimpaired_suffix = matched
+        M.cur_list = unimpaired
+        cmds[unimpaired] = {
+          "normal ]" .. matched,
+          "normal [" .. matched,
+        }
+      end
+    end
+  end
+
+  vim.on_key(unimp_callback, nil, nil)
+end
+
 -- public
-M.setup = function()
+M.setup = function(opts)
   set_list(1)
+
+  local keys = setup_keys(opts.smart_unimpaired)
+
   register_qf_autocmds()
-  register_onkey_listeners()
+  register_onkey_listeners(keys)
+
+  if opts.smart_unimpaired then
+    register_unimpaired_listener()
+  end
+
 end
 
 M.next = function()
