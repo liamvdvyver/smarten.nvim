@@ -17,34 +17,42 @@ local next = 1
 local prev = 2
 
 -- commands to run in each direction
+-- Each entry should be a { next, previous } list
+-- where next/previous have form:
+-- { mode, command }
+-- mode must be one of the locals n or c below, with the corresponding type of
+-- command listen next to it
 local cmds = {}
+local normal = 1 -- string
+local command = 2 -- string
+local lua = 3 -- callable
 cmds[search] = {
-  "normal n",
-  "normal N",
+  { normal, "n" },
+  { normal, "N" },
 }
 cmds[quickfix] = {
-  "cnext",
-  "cprev",
+  { command, "cnext" },
+  { command, "cprev" },
 }
 cmds[loclist] = {
-  "lnext",
-  "lprev",
+  { command, "lnext" },
+  { command, "lprev" },
 }
 cmds[buffer] = {
-  "bnext",
-  "bprevious",
+  { command, "bnext" },
+  { command, "bprevious" },
 }
 cmds[tab] = {
-  "tabnext",
-  "tabprevious",
+  { command, "tabnext" },
+  { command, "tabprevious" },
 }
 cmds[tag] = {
-  "tnext",
-  "tprevious",
+  { command, "tnext" },
+  { command, "tprevious" },
 }
 cmds[diagnostic] = {
-  "lua vim.diagnostic.goto_next()",
-  "lua vim.diagnostic.goto_prev()",
+  { lua, vim.diagnostic.goto_next },
+  { lua, vim.diagnostic.goto_prev },
 }
 
 -- Table of keys to match.
@@ -96,14 +104,61 @@ local setup_keys = function(smart_unimpaired)
   return keys
 end
 
+-- do_run_cmd[mode_idx](cmd) will run the command as specified above
+local do_run_cmd = {}
+do_run_cmd[command] = function(cmd)
+  pcall(vim.cmd, "silent " .. cmd)
+end
+do_run_cmd[normal] = function(cmd)
+  do_run_cmd[command]("normal " .. cmd)
+end
+do_run_cmd[lua] = function(cmd)
+  cmd()
+end
+
+-- Given index/next, dispatch correct strategy
 local run_cmd = function(list_idx, dir_idx)
-  local cmd = "silent " .. cmds[list_idx][dir_idx]
-  pcall(vim.cmd, cmd)
+  local mode = cmds[list_idx][dir_idx][1]
+  local cmd = cmds[list_idx][dir_idx][2]
+  do_run_cmd[mode](cmd)
+end
+
+-- Given command/mode, convert it to a normal mode command
+local do_normalise_cmd = {}
+do_normalise_cmd[normal] = function(cmd)
+  return cmd
+end
+do_normalise_cmd[command] = function(cmd)
+  return ":silent " .. cmd .. "<CR>"
+end
+do_normalise_cmd[lua] = function(cmd)
+  return cmd
+end
+
+-- Given list/direction idx return something mappable via:
+-- vim.keymap.set("n", key, normalise_cmd(list_idx, dir_idx))
+local normalise_cmd = function(list_idx, dir_idx)
+  local mode = cmds[list_idx][dir_idx][1]
+  local cmd = cmds[list_idx][dir_idx][2]
+  return do_normalise_cmd[mode](cmd)
 end
 
 -- swap list
 local set_list = function(list_idx)
   M.cur_list = list_idx
+
+  -- manually set managed maps
+  if M.next_keys then
+    for _, v in ipairs(M.next_keys) do
+      -- P(normalise_cmd(list_idx, next))
+      vim.keymap.set("n", v, normalise_cmd(list_idx, next))
+    end
+  end
+  if M.prev_keys then
+    for _, v in ipairs(M.prev_keys) do
+      vim.keymap.set("n", v, normalise_cmd(list_idx, prev))
+    end
+  end
 end
 
 M.set_list = set_list
@@ -143,7 +198,6 @@ local handle_onkey = function(key, typed, pattern, list_idx)
     local match_key = pattern[1] and string.match(key, pattern[1])
     local match_typed = pattern[2] and string.match(typed, pattern[2])
     if match_key or match_typed then
-      -- vim.notify("matched " .. list_idx .. " with " .. key .. ", " .. typed)
       set_list(list_idx)
     end
   end
@@ -170,11 +224,11 @@ local register_unimpaired_listener = function()
       local matched = string.match(typed, unimp_pat)
       if matched then
         M.unimpaired_suffix = matched
-        M.cur_list = unimpaired
         cmds[unimpaired] = {
-          "normal ]" .. matched,
-          "normal [" .. matched,
+          { command, "silent normal ]" .. matched },
+          { command, "silent normal [" .. matched },
         }
+        M.set_list(unimpaired)
       end
     end
   end
@@ -184,13 +238,27 @@ end
 
 -- public
 M.setup = function(opts)
+  -- default to n/N
   set_list(1)
 
+  -- get opts
   local default_opts = {
     smart_unimpaired = true,
   }
-
   opts = vim.tbl_extend("force", default_opts, opts)
+
+  -- Plugin managed keys
+  if opts.keys then
+    local next_keys = opts.keys.next
+    local prev_keys = opts.keys.prev
+
+    if next_keys then
+      M.next_keys = vim.iter({ next_keys }):flatten():totable()
+    end
+    if prev_keys then
+      M.prev_keys = vim.iter({ prev_keys }):flatten():totable()
+    end
+  end
 
   local keys = setup_keys(opts.smart_unimpaired)
 
