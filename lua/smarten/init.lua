@@ -150,7 +150,6 @@ local set_list = function(list_idx)
   -- manually set managed maps
   if M.next_keys then
     for _, v in ipairs(M.next_keys) do
-      -- P(normalise_cmd(list_idx, next))
       vim.keymap.set("n", v, normalise_cmd(list_idx, next))
     end
   end
@@ -225,8 +224,8 @@ local register_unimpaired_listener = function()
       if matched then
         M.unimpaired_suffix = matched
         cmds[unimpaired] = {
-          { command, "silent normal ]" .. matched },
-          { command, "silent normal [" .. matched },
+          { command, "normal ]" .. matched },
+          { command, "normal [" .. matched },
         }
         M.set_list(unimpaired)
       end
