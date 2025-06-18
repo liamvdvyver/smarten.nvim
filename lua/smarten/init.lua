@@ -129,7 +129,7 @@ do_normalise_cmd[normal] = function(cmd)
   return cmd
 end
 do_normalise_cmd[command] = function(cmd)
-  return ":silent " .. cmd .. "<CR>"
+  return ":" .. cmd .. "<CR>"
 end
 do_normalise_cmd[lua] = function(cmd)
   return cmd
