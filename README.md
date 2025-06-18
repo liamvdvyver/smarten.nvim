@@ -58,11 +58,11 @@ select a particular quickfix list, just make sure it is the most recently opened
 
 ## TODO
 
-[x] Switch to search on search keys/next/previous
-[x] Switch to quickfix list on generation/open/entry
-[x] Switch to other list when unimpaired-style mapping is used
-[] Add support for custom user-defined lists
-[] Add quirks to issues (I'm on a plane right now and don't have internet)
+* [x] Switch to search on search keys/next/previous
+* [x] Switch to quickfix list on generation/open/entry
+* [x] Switch to other list when unimpaired-style mapping is used
+* [ ] Add support for custom user-defined lists
+* [ ] Add quirks to issues (I'm on a plane right now and don't have internet)
 
 ## Quirks
 
