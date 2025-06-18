@@ -4,7 +4,7 @@ A smarter next/previous.
 
 Still in early development, issues are very welcome, for bug or ideas.
 
-## Installation
+## Setup
 
 Make sure to call `require("smarten").setup(opts)`.
 
@@ -14,24 +14,34 @@ E.g. with Lazy:
 {
   "liamvdvyver/smarten.nvim",
   opts = {
-    -- Only one setting for now, see usage for more detail
-    -- Defaults to true
-    smart_unimpaired = true
+    smart_unimpaired = true,
+
+    -- Maps dynamically set by smarten
+    keys = {
+      next = "n",
+      prev = "N",
+    }
   },
   config = function(_, opts)
     local smarten = require("smarten")
     smarten.setup(opts)
 
-    -- Set some keymaps
+    -- Or manually set maps
+    -- WARNING: some keys such as n/N must be set dynamically. See config for more info.
     vim.keymap.set("n", "<C-n>", smarten.next, { desc = "[n]ext item" })
     vim.keymap.set("n", "<C-p>", smarten.prev, { desc = "[p]previous item" })
   end
 }
 ```
 
+## Config
+
+* `smart_unimpaired`: whether to infer corresponding normal mode maps from any unimpaired style maps (default: `true`)
+* `keys`: a table with entries `next` and `prev`. Each is a string or list of strings with keys to dynamically map. When mapping `smarten.next()`/`.prev()` to keys which are themselves used to traverse a list, they can trigger recursive behaviour. This is avoided by letting smarten remap the keys dynamically.
+
 ## Usage
 
-To go to the next/previous item from the current list, use `require("smarten").next()`/`require("smarten").prev()`.
+To go to the next/previous item from the current list, use `require("smarten").next()`/`require("smarten").prev()`, or the keys specified in `keys`.
 
 Currently, list detection and next/previous commands work the following way:
 
@@ -62,4 +72,3 @@ The plugin is still quite new, here are know issues/shortcomings:
 * It would be better to switch to a search on (`/`/`?`) only if the user hits `<CR>` after to initiate the search.
 * Currently to detect if if a buffer is a quickfix list, the plugin checks if the `filetype` option equals `"qf"`. Since the filetype option for a location list is also set to `"qf"` it doesn't work well with the location list, and will usually set the active list to the quickfix list. This doesn't apply to unimpaired style mappings `[L` or `]L`, which work fine.
 * If you want to remap `<C-n>` or `<C-p>` like the example, it will interfere with hardtime.nvim.
-* If you try to remap `n` or `N` (the original idea), then when a search is performed, ":normal n" is recursive. I'm not yet aware of another way to go to the next search result that isn't janky.
