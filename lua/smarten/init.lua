@@ -2,19 +2,24 @@ local M = {
   cur_list = nil,
 }
 
--- idx for selected list
-local search = 1
-local quickfix = 2
-local loclist = 3
-local buffer = 4
-local tab = 5
-local tag = 6
-local diagnostic = 7
-local unimpaired = 8
+-- Enum vals for lists of which can be navigated
+local list = {
+  search = 1,
+  quickfix = 2,
+  loclist = 3,
+  buffer = 4,
+  tab = 5,
+  tag = 6,
+  diagnostic = 7,
+  -- The most recent unimpairsed style mapping
+  unimpaired = 8,
+}
 
--- idx for direction
-local next = 1
-local prev = 2
+-- Enum vals for direction to traverse a list
+local direction = {
+  next = 1,
+  prev = 2,
+}
 
 -- commands to run in each direction
 -- Each entry should be a { next, previous } list
@@ -23,36 +28,39 @@ local prev = 2
 -- mode must be one of the locals n or c below, with the corresponding type of
 -- command listen next to it
 local cmds = {}
-local normal = 1 -- string
-local command = 2 -- string
-local lua = 3 -- callable
-cmds[search] = {
-  { normal, "n" },
-  { normal, "N" },
+
+local cmd_type = {
+  normal = 1, -- string
+  command = 2, -- string
+  lua = 3, -- callable
 }
-cmds[quickfix] = {
-  { command, "cnext" },
-  { command, "cprev" },
+cmds[list.search] = {
+  { cmd_type.normal, "n" },
+  { cmd_type.normal, "N" },
 }
-cmds[loclist] = {
-  { command, "lnext" },
-  { command, "lprev" },
+cmds[list.quickfix] = {
+  { cmd_type.command, "cnext" },
+  { cmd_type.command, "cprev" },
 }
-cmds[buffer] = {
-  { command, "bnext" },
-  { command, "bprevious" },
+cmds[list.loclist] = {
+  { cmd_type.command, "lnext" },
+  { cmd_type.command, "lprev" },
 }
-cmds[tab] = {
-  { command, "tabnext" },
-  { command, "tabprevious" },
+cmds[list.buffer] = {
+  { cmd_type.command, "bnext" },
+  { cmd_type.command, "bprevious" },
 }
-cmds[tag] = {
-  { command, "tnext" },
-  { command, "tprevious" },
+cmds[list.tab] = {
+  { cmd_type.command, "tabnext" },
+  { cmd_type.command, "tabprevious" },
 }
-cmds[diagnostic] = {
-  { lua, vim.diagnostic.goto_next },
-  { lua, vim.diagnostic.goto_prev },
+cmds[list.tag] = {
+  { cmd_type.command, "tnext" },
+  { cmd_type.command, "tprevious" },
+}
+cmds[list.diagnostic] = {
+  { cmd_type.lua, vim.diagnostic.goto_next },
+  { cmd_type.lua, vim.diagnostic.goto_prev },
 }
 
 -- Table of keys to match.
@@ -76,27 +84,27 @@ local setup_keys = function(smart_unimpaired)
     end
   end
 
-  keys[search] = {
+  keys[list.search] = {
     "[/?*#nN]",
     nil,
   }
-  keys[quickfix] = {
+  keys[list.quickfix] = {
     nil,
     unimp_str("qQ"),
   }
-  keys[buffer] = {
+  keys[list.buffer] = {
     nil,
     unimp_str("bB"),
   }
-  keys[tab] = {
+  keys[list.tab] = {
     nil,
     nil, -- TODO: is this mapped?
   }
-  keys[tag] = {
+  keys[list.tag] = {
     nil,
     unimp_str("tT"),
   }
-  keys[diagnostic] = {
+  keys[list.diagnostic] = {
     nil,
     unimp_str("dD"),
   }
@@ -106,13 +114,13 @@ end
 
 -- do_run_cmd[mode_idx](cmd) will run the command as specified above
 local do_run_cmd = {}
-do_run_cmd[command] = function(cmd)
+do_run_cmd[cmd_type.command] = function(cmd)
   pcall(vim.cmd, "silent " .. cmd)
 end
-do_run_cmd[normal] = function(cmd)
-  do_run_cmd[command]("normal " .. cmd)
+do_run_cmd[cmd_type.normal] = function(cmd)
+  do_run_cmd[cmd_type.command]("normal " .. cmd)
 end
-do_run_cmd[lua] = function(cmd)
+do_run_cmd[cmd_type.lua] = function(cmd)
   cmd()
 end
 
@@ -125,13 +133,13 @@ end
 
 -- Given command/mode, convert it to a normal mode command
 local do_normalise_cmd = {}
-do_normalise_cmd[normal] = function(cmd)
+do_normalise_cmd[cmd_type.normal] = function(cmd)
   return cmd
 end
-do_normalise_cmd[command] = function(cmd)
+do_normalise_cmd[cmd_type.command] = function(cmd)
   return ":" .. cmd .. "<CR>"
 end
-do_normalise_cmd[lua] = function(cmd)
+do_normalise_cmd[cmd_type.lua] = function(cmd)
   return cmd
 end
 
@@ -150,22 +158,20 @@ local set_list = function(list_idx)
   -- manually set managed maps
   if M.next_keys then
     for _, v in ipairs(M.next_keys) do
-      vim.keymap.set("n", v, normalise_cmd(list_idx, next))
+      vim.keymap.set("n", v, normalise_cmd(list_idx, direction.next))
     end
   end
   if M.prev_keys then
     for _, v in ipairs(M.prev_keys) do
-      vim.keymap.set("n", v, normalise_cmd(list_idx, prev))
+      vim.keymap.set("n", v, normalise_cmd(list_idx, direction.prev))
     end
   end
 end
 
-M.set_list = set_list
-
 -- register autommands
 local register_qf_autocmds = function()
   local callback = function(_)
-    set_list(quickfix)
+    set_list(list.quickfix)
   end
 
   local callback_check = function(ev, filetype)
@@ -223,11 +229,11 @@ local register_unimpaired_listener = function()
       local matched = string.match(typed, unimp_pat)
       if matched then
         M.unimpaired_suffix = matched
-        cmds[unimpaired] = {
-          { command, "normal ]" .. matched },
-          { command, "normal [" .. matched },
+        cmds[list.unimpaired] = {
+          { cmd_type.command, "normal ]" .. matched },
+          { cmd_type.command, "normal [" .. matched },
         }
-        M.set_list(unimpaired)
+        set_list(list.unimpaired)
       end
     end
   end
@@ -267,15 +273,14 @@ M.setup = function(opts)
   if opts.smart_unimpaired then
     register_unimpaired_listener()
   end
-
 end
 
 M.next = function()
-  run_cmd(M.cur_list, next)
+  run_cmd(M.cur_list, direction.next)
 end
 
 M.prev = function()
-  run_cmd(M.cur_list, prev)
+  run_cmd(M.cur_list, direction.prev)
 end
 
 return M
