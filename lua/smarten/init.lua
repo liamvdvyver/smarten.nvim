@@ -1,8 +1,8 @@
-local M = {
-  cur_list = nil,
-}
+local M = {}
 
--- Enum vals for lists of which can be navigated
+--- @alias list_val integer
+--- @type table<string, list_val>
+--- Enum vals for lists of which can be navigated.
 local list = {
   search = 1,
   quickfix = 2,
@@ -11,71 +11,67 @@ local list = {
   tab = 5,
   tag = 6,
   diagnostic = 7,
-  -- The most recent unimpairsed style mapping
+  -- The most recent unimpaired style mapping
   unimpaired = 8,
 }
 
--- Enum vals for direction to traverse a list
+--- @alias direction_val integer
+--- @type table<string, direction_val>
+--- Enum vals for direction to traverse a list.
 local direction = {
   next = 1,
   prev = 2,
 }
 
--- commands to run in each direction
--- Each entry should be a { next, previous } list
--- where next/previous have form:
--- { mode, command }
--- mode must be one of the locals n or c below, with the corresponding type of
--- command listen next to it
-local cmds = {}
-
+--- @alias cmd_type_val integer
+--- @type table<string, cmd_type_val>
+--- Enum vals for method to invoke behaviour.
 local cmd_type = {
-  normal = 1, -- string
-  command = 2, -- string
-  lua = 3, -- callable
-}
-cmds[list.search] = {
-  { cmd_type.normal, "n" },
-  { cmd_type.normal, "N" },
-}
-cmds[list.quickfix] = {
-  { cmd_type.command, "cnext" },
-  { cmd_type.command, "cprev" },
-}
-cmds[list.loclist] = {
-  { cmd_type.command, "lnext" },
-  { cmd_type.command, "lprev" },
-}
-cmds[list.buffer] = {
-  { cmd_type.command, "bnext" },
-  { cmd_type.command, "bprevious" },
-}
-cmds[list.tab] = {
-  { cmd_type.command, "tabnext" },
-  { cmd_type.command, "tabprevious" },
-}
-cmds[list.tag] = {
-  { cmd_type.command, "tnext" },
-  { cmd_type.command, "tprevious" },
-}
-cmds[list.diagnostic] = {
-  { cmd_type.lua, vim.diagnostic.goto_next },
-  { cmd_type.lua, vim.diagnostic.goto_prev },
+  normal = 1, ---@alias cmd_type_normal 1
+  ex = 2, ---@alias cmd_type_ex 2
+  lua = 3, ---@alias cmd_type_lua 3
 }
 
--- Table of keys to match.
---
--- Entries must be of the form {key, typed}, where
--- each is a lua string, matching the arguments to vim.on_key.
--- That is, key is rhs, typed is lhs of mapping.
---
--- Assumed to only match in normal mode.
---
--- If smart_unimpaired, then unimpaired style mappings are not setup here
--- (they should be inferred automatically elsewhere)
+--- @alias cmd_entry {type: cmd_type_normal, cmd: string} | {type: cmd_type_ex, cmd: string} | {type: cmd_type_lua, cmd: function}
+--- @type table<list_val, table<direction_val, cmd_entry>>
+--- How to traverse lists in each direction.
+local cmds = {
+  [list.search] = {
+    [direction.next] = { type = cmd_type.normal, cmd = "n" },
+    [direction.prev] = { type = cmd_type.normal, cmd = "N" },
+  },
+  [list.quickfix] = {
+    [direction.next] = { type = cmd_type.ex, cmd = "cnext" },
+    [direction.prev] = { type = cmd_type.ex, cmd = "cprev" },
+  },
+  [list.loclist] = {
+    [direction.next] = { type = cmd_type.ex, cmd = "lnext" },
+    [direction.prev] = { type = cmd_type.ex, cmd = "lprev" },
+  },
+  [list.buffer] = {
+    [direction.next] = { type = cmd_type.ex, cmd = "bnext" },
+    [direction.prev] = { type = cmd_type.ex, cmd = "bprevious" },
+  },
+  [list.tab] = {
+    [direction.next] = { type = cmd_type.ex, cmd = "tabnext" },
+    [direction.prev] = { type = cmd_type.ex, cmd = "tabprevious" },
+  },
+  [list.tag] = {
+    [direction.next] = { type = cmd_type.ex, cmd = "tnext" },
+    [direction.prev] = { type = cmd_type.ex, cmd = "tprevious" },
+  },
+  [list.diagnostic] = {
+    [direction.next] = { type = cmd_type.lua, cmd = vim.diagnostic.goto_next },
+    [direction.prev] = { type = cmd_type.lua, cmd = vim.diagnostic.goto_prev },
+  },
+}
+
+--- @param smart_unimpaired boolean infer unimpaired-style mappings
+--- @alias onkey_keys { key: string, typed: string } matches vim.on_key, i.e. key is lhs, typed is rhs of mapping
+--- @alias onkey_table table<list_val, onkey_keys>
+--- @return onkey_table
+--- Provide a table of keys to match.
 local setup_keys = function(smart_unimpaired)
-  local keys = {}
-
   local unimp_str = function(chars)
     if not smart_unimpaired then
       return "[%[%]][" .. chars .. "]"
@@ -84,74 +80,82 @@ local setup_keys = function(smart_unimpaired)
     end
   end
 
-  keys[list.search] = {
-    "[/?*#nN]",
-    nil,
+  local keys = {
+    [list.search] = {
+      key = "[/?*#nN]",
+      typed = nil,
+    },
+    [list.quickfix] = {
+      key = nil,
+      typed = unimp_str("qQ"),
+    },
+    [list.buffer] = {
+      key = nil,
+      typed = unimp_str("bB"),
+    },
+    [list.tab] = {
+      key = nil,
+      typed = nil, -- TODO: is this mapped?
+    },
+    [list.tag] = {
+      key = nil,
+      typed = unimp_str("tT"),
+    },
+    [list.diagnostic] = {
+      key = nil,
+      typed = unimp_str("dD"),
+    },
   }
-  keys[list.quickfix] = {
-    nil,
-    unimp_str("qQ"),
-  }
-  keys[list.buffer] = {
-    nil,
-    unimp_str("bB"),
-  }
-  keys[list.tab] = {
-    nil,
-    nil, -- TODO: is this mapped?
-  }
-  keys[list.tag] = {
-    nil,
-    unimp_str("tT"),
-  }
-  keys[list.diagnostic] = {
-    nil,
-    unimp_str("dD"),
-  }
-
   return keys
 end
 
--- do_run_cmd[mode_idx](cmd) will run the command as specified above
-local do_run_cmd = {}
-do_run_cmd[cmd_type.command] = function(cmd)
-  pcall(vim.cmd, "silent " .. cmd)
-end
-do_run_cmd[cmd_type.normal] = function(cmd)
-  do_run_cmd[cmd_type.command]("normal " .. cmd)
-end
-do_run_cmd[cmd_type.lua] = function(cmd)
-  cmd()
-end
-
--- Given index/next, dispatch correct strategy
+--- @param list_idx list_val
+--- @param dir_idx direction_val
+--- Given index/next, dispatch correct strategy.
 local run_cmd = function(list_idx, dir_idx)
-  local mode = cmds[list_idx][dir_idx][1]
-  local cmd = cmds[list_idx][dir_idx][2]
-  do_run_cmd[mode](cmd)
+  --- @type table<cmd_type_val, function>
+  local do_run_cmd = {}
+  do_run_cmd[cmd_type.ex] = function(cmd)
+    pcall(vim.cmd, "silent " .. cmd)
+  end
+  do_run_cmd[cmd_type.normal] = function(cmd)
+    do_run_cmd[cmd_type.ex]("normal " .. cmd)
+  end
+  do_run_cmd[cmd_type.lua] = function(cmd)
+    cmd()
+  end
+
+  local type = cmds[list_idx][dir_idx].type
+  local cmd = cmds[list_idx][dir_idx].cmd
+  do_run_cmd[type](cmd)
 end
 
--- Given command/mode, convert it to a normal mode command
-local do_normalise_cmd = {}
-do_normalise_cmd[cmd_type.normal] = function(cmd)
-  return cmd
-end
-do_normalise_cmd[cmd_type.command] = function(cmd)
-  return ":" .. cmd .. "<CR>"
-end
-do_normalise_cmd[cmd_type.lua] = function(cmd)
-  return cmd
-end
-
--- Given list/direction idx return something mappable via:
--- vim.keymap.set("n", key, normalise_cmd(list_idx, dir_idx))
+--- @param list_idx list_val
+--- @param dir_idx direction_val
+--- @return string
+--- Given list/direction idx return something mappable via:
+--- `vim.keymap.set("n", key, normalise_cmd(list_idx, dir_idx))`
 local normalise_cmd = function(list_idx, dir_idx)
-  local mode = cmds[list_idx][dir_idx][1]
-  local cmd = cmds[list_idx][dir_idx][2]
+  --- @type table<cmd_type_val, function>
+  --- Given command/mode, convert it to a normal mode command
+  local do_normalise_cmd = {}
+  do_normalise_cmd[cmd_type.normal] = function(cmd)
+    return cmd
+  end
+  do_normalise_cmd[cmd_type.ex] = function(cmd)
+    return ":" .. cmd .. "<CR>"
+  end
+  do_normalise_cmd[cmd_type.lua] = function(cmd)
+    return cmd
+  end
+  local mode = cmds[list_idx][dir_idx].type
+  local cmd = cmds[list_idx][dir_idx].cmd
+
   return do_normalise_cmd[mode](cmd)
 end
 
--- swap list
+--- @param list_idx list_val
+--- Swap the current list.
 local set_list = function(list_idx)
   M.cur_list = list_idx
 
@@ -168,7 +172,7 @@ local set_list = function(list_idx)
   end
 end
 
--- register autommands
+-- register autocommands
 local register_qf_autocmds = function()
   local callback = function(_)
     set_list(list.quickfix)
@@ -196,12 +200,15 @@ local register_qf_autocmds = function()
   })
 end
 
--- listen to keys, match search keys in normal mode only
--- then, set active list to search
+--- @param key string
+--- @param typed string
+--- @param pattern onkey_keys
+--- @param list_idx list_val
+--- Listen to keys, match search keys in normal mode only, then set active list to search>
 local handle_onkey = function(key, typed, pattern, list_idx)
   if vim.fn.mode() == "n" then
-    local match_key = pattern[1] and string.match(key, pattern[1])
-    local match_typed = pattern[2] and string.match(typed, pattern[2])
+    local match_key = pattern.key and string.match(key, pattern.key)
+    local match_typed = pattern.typed and string.match(typed, pattern.typed)
     if match_key or match_typed then
       set_list(list_idx)
     end
@@ -209,6 +216,7 @@ local handle_onkey = function(key, typed, pattern, list_idx)
 end
 
 -- TODO: many small listeners vs. one big listener
+--- @param keys onkey_table
 local register_onkey_listeners = function(keys)
   for list_idx, pattern in pairs(keys) do
     -- TODO: can I pass these args in with on_key, this is messy
@@ -230,8 +238,8 @@ local register_unimpaired_listener = function()
       if matched then
         M.unimpaired_suffix = matched
         cmds[list.unimpaired] = {
-          { cmd_type.command, "normal ]" .. matched },
-          { cmd_type.command, "normal [" .. matched },
+          { type = cmd_type.ex, cmd = "normal ]" .. matched },
+          { type = cmd_type.ex, cmd = "normal [" .. matched },
         }
         set_list(list.unimpaired)
       end
