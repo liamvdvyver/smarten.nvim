@@ -55,20 +55,3 @@ select a particular quickfix list, just make sure it is the most recently opened
     next/previous dynamically. Similar, will detect `[` or `]` inside of a normal remap.
     * Only support those built in to vim. Set `smart_unimpaired` to `false` to
     use this behaviour instead.
-
-## TODO
-
-* [x] Switch to search on search keys/next/previous
-* [x] Switch to quickfix list on generation/open/entry
-* [x] Switch to other list when unimpaired-style mapping is used
-* [ ] Add support for custom user-defined lists
-* [ ] Add quirks to issues (I'm on a plane right now and don't have internet)
-
-## Quirks
-
-The plugin is still quite new, here are know issues/shortcomings:
-
-* There is no easy way I know of to hook into Ex commands such as `cnext` to update the active list.
-* It would be better to switch to a search on (`/`/`?`) only if the user hits `<CR>` after to initiate the search.
-* Currently to detect if if a buffer is a quickfix list, the plugin checks if the `filetype` option equals `"qf"`. Since the filetype option for a location list is also set to `"qf"` it doesn't work well with the location list, and will usually set the active list to the quickfix list. This doesn't apply to unimpaired style mappings `[L` or `]L`, which work fine.
-* If you want to remap `<C-n>` or `<C-p>` like the example, it will interfere with hardtime.nvim.
