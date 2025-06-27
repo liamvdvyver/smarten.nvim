@@ -58,6 +58,7 @@ The current lists of items are supported:
 |Quickfix list| `]q`, `[q`, Opening/navigating to `qf` buffer|
 |Location list|`]l`, `[l`|
 |Buffers|`]b`, `[b`|
+|Tabs|Enter tab page|
 |Tags|`]t`, `[t`|
 |Diagnostics|`]d`, `[d`|
 

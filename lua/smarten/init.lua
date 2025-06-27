@@ -200,6 +200,14 @@ local register_qf_autocmds = function()
   })
 end
 
+local register_tab_autocmds = function()
+  vim.api.nvim_create_autocmd("TabEnter", {
+    callback = function(_)
+      set_list(list.tab)
+    end,
+  })
+end
+
 --- @param key string
 --- @param typed string
 --- @param pattern onkey_keys
@@ -277,6 +285,7 @@ M.setup = function(opts)
   local keys = setup_keys(opts.smart_unimpaired)
 
   register_qf_autocmds()
+  register_tab_autocmds()
   register_onkey_listeners(keys)
 
   if opts.smart_unimpaired then
