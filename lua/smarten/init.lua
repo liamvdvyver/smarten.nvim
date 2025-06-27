@@ -95,7 +95,7 @@ local setup_keys = function(smart_unimpaired)
     },
     [list.tab] = {
       key = nil,
-      typed = nil, -- TODO: is this mapped?
+      typed = nil,
     },
     [list.tag] = {
       key = nil,
@@ -174,29 +174,22 @@ end
 
 -- register autocommands
 local register_qf_autocmds = function()
-  local callback = function(_)
-    set_list(list.quickfix)
-  end
-
-  local callback_check = function(ev, filetype)
-    local ft = vim.bo[ev.buf].filetype
-    -- HACK: I can't match on pattern, so this works instead
-    if ft == filetype then
-      callback()
+  local callback = function(ev)
+    local wininfo = vim.fn.getwininfo(vim.fn.bufwinid(ev.buf))[1]
+    if wininfo.loclist == 1 then
+      set_list(list.loclist)
+    elseif wininfo.quickfix == 1 then
+      set_list(list.quickfix)
     end
   end
 
   vim.api.nvim_create_autocmd("BufWinEnter", {
-    callback = function(ev)
-      callback_check(ev, "qf")
-    end,
+    callback = callback,
   })
 
   -- On entering quickfix window
   vim.api.nvim_create_autocmd("WinEnter", {
-    callback = function(ev)
-      callback_check(ev, "qf")
-    end,
+    callback = callback,
   })
 end
 
