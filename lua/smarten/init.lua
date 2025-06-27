@@ -201,30 +201,20 @@ local register_tab_autocmds = function()
   })
 end
 
---- @param key string
---- @param typed string
---- @param pattern onkey_keys
---- @param list_idx list_val
---- Listen to keys, match search keys in normal mode only, then set active list to search>
-local handle_onkey = function(key, typed, pattern, list_idx)
-  if vim.fn.mode() == "n" then
-    local match_key = pattern.key and string.match(key, pattern.key)
-    local match_typed = pattern.typed and string.match(typed, pattern.typed)
-    if match_key or match_typed then
-      set_list(list_idx)
-    end
-  end
-end
-
--- TODO: many small listeners vs. one big listener
 --- @param keys onkey_table
 local register_onkey_listeners = function(keys)
-  for list_idx, pattern in pairs(keys) do
-    -- TODO: can I pass these args in with on_key, this is messy
-    vim.on_key(function(key, typed)
-      handle_onkey(key, typed, pattern, list_idx)
-    end, nil, nil)
-  end
+  vim.on_key(function(key, typed)
+    if vim.fn.mode() == "n" then
+      for list_idx, pattern in pairs(keys) do
+        local match_key = pattern.key and string.match(key, pattern.key)
+        local match_typed = pattern.typed and string.match(typed, pattern.typed)
+        if match_key or match_typed then
+          set_list(list_idx)
+          return
+        end
+      end
+    end
+  end)
 end
 
 -- Add a listener which matches typed on "[%[%]]%a",
