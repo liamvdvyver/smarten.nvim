@@ -257,6 +257,7 @@ M.setup = function(opts)
   -- get opts
   local default_opts = {
     smart_unimpaired = true,
+    keys = { next = "n", prev = "N" },
   }
   opts = vim.tbl_extend("force", default_opts, opts)
 
