@@ -13,6 +13,7 @@ local list = {
   diagnostic = 7,
   -- The most recent unimpaired style mapping
   unimpaired = 8,
+  find_to = 9,
 }
 
 --- @alias direction_val integer
@@ -64,6 +65,10 @@ local cmds = {
     [direction.next] = { type = cmd_type.lua, cmd = vim.diagnostic.goto_next },
     [direction.prev] = { type = cmd_type.lua, cmd = vim.diagnostic.goto_prev },
   },
+  [list.find_to] = {
+    [direction.next] = { type = cmd_type.normal, cmd = ";" },
+    [direction.prev] = { type = cmd_type.normal, cmd = "," },
+  },
 }
 
 --- @param smart_unimpaired boolean infer unimpaired-style mappings
@@ -104,6 +109,10 @@ local setup_keys = function(smart_unimpaired)
     [list.diagnostic] = {
       key = nil,
       typed = unimp_str("dD"),
+    },
+    [list.find_to] = {
+      key = "[fFtT]",
+      typed = nil,
     },
   }
   return keys

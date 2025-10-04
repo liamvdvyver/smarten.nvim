@@ -61,6 +61,7 @@ The current lists of items are supported:
 |Tabs|Enter tab page|
 |Tags|`]t`, `[t`|
 |Diagnostics|`]d`, `[d`|
+|Find/to character|`f`, `F`,`t`, `T`|
 
 
 If the `smart_unimpaired` option is set, corresponding next/previous maps are inferred from the usage of any map starting with `]` or `[`.
